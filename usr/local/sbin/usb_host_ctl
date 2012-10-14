@@ -148,7 +148,9 @@ def usb_speed(options):
 	return r
 	
 def kernel(options):
+	# should check that it is running before stopping bme
 	call_ignore(["stop", "-q", "bme"], options)
+
 	list = set(["bq2415x_charger", "bq27x00_battery"])
 	with open("/proc/modules") as f:
 		for l in f:
@@ -187,6 +189,7 @@ def check_usb(options):
 def hostc(options):
 	kernel(options)
 	
+	# this is wrong, I think that I should check /sys/devices/platform/musb_hdrc/hostdevice as well
 	if check_usb(options):
 		if options.verbose: print "already attached"
 		return
