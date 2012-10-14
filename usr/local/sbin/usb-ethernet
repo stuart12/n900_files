@@ -1,0 +1,27 @@
+#!/bin/sh
+msg() {
+	run-standalone.sh dbus-send --type=method_call --dest=org.freedesktop.Notifications /org/freedesktop/Notifications org.freedesktop.Notifications.SystemNoteInfoprint string:"$*"
+}
+get_pidfile() {
+	echo /var/run/udhcpc.$IFACE.pid
+}
+if [ "$1" == --remove ]
+then
+	IFACE=$2
+	pidfile=`get_pidfile`
+	msg interface $IFACE gone, killing $pidfile
+	kill `cat $pidfile`
+	dbus-send --system --dest=com.nokia.icd /com/nokia/icd_ui com.nokia.icd_ui.disconnect boolean:true
+	exit
+fi
+IFACE=$1
+pidfile=`get_pidfile`
+
+# http://talk.maemo.org/showthread.php?p=927995#post927995
+# gconftool-2 -s -t string /system/osso/connectivity/IAP/WIRED/type DUMMY
+# gconftool-2 -s -t string /system/osso/connectivity/IAP/WIRED/name WIRED
+
+msg udhcpc asking for IP address for $IFACE $w
+
+udhcpc -p $pidfile -n -i $IFACE | while read l; do msg udhcpc $l; done
+
