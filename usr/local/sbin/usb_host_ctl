@@ -1,0 +1,277 @@
+#!/usr/bin/python
+#    usb_host_ctl Copyright (c) 2012 Stuart Pook (http://www.pook.it/)
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# copied from pali's script in usbmode_1.0-2_armel.deb
+# http://talk.maemo.org/showthread.php?t=85658
+from __future__ import with_statement 
+import os, sys, optparse, subprocess, pipes, errno, time, select, signal
+
+def sleep(d, options):
+	if options.verbose: print "sleep", d
+	time.sleep(d)
+
+def open_charger(mode, options):
+	try:
+		return open("/sys/class/power_supply/bq24150a-0/mode", mode)
+	except IOError, (e, strerror):
+		if e != errno.ENOENT:
+			raise
+		return open("/sys/class/power_supply/bq24150-0/mode", mode)
+
+def call_print(command, options):
+	if options.verbose:
+		for c in command:
+			print pipes.quote(c),
+		print
+			
+def call(command, options):
+	call_print(command, options)
+	subprocess.check_call(command)
+	if options.verbose: print command[0], "done"
+	
+def call_ignore(command, options):
+	call_print(command, options)
+	r = subprocess.call(command)
+	if options.verbose: print command[0], "done", r
+	return r
+
+def set_usb_mode(mode, options):
+	with open("/sys/devices/platform/musb_hdrc/mode", "w") as f:
+		f.write(mode + "\n")
+	if options.verbose: print "set_usb_mode", mode
+
+def set_charger_mode(mode, options):
+	with open_charger("w", options) as f:
+		f.write(mode + "\n")
+		if options.verbose: print "set_charger_mode", mode
+
+def get_charger_mode(options):
+	with open_charger("r", options) as f:
+		r = f.readline().strip()
+		if options.verbose: print "get_charger_mode", r
+		return r
+		
+def rmmod(module, options):
+	call(["modprobe", "-r"] + [module], options)
+		
+def insmod(module, options):
+	call(["modprobe"] + [module], options)
+
+def gadget_unload(options):
+	if call_ignore(["osso-usb-mass-storage-is-used.sh"], options) == 0:
+		call(["osso-usb-mass-storage-disable.sh"], options)
+	modules = []
+	with open("/proc/modules") as f:
+			for l in f:
+				module = l.split()[0]
+				if module == "g_nokia":
+					if options.verbose: print "found", module
+					call(["initctl", "emit", "G_NOKIA_REMOVE"], options)
+					call_ignore(["killall", "pnatd", "obexd", "syncd"], options)
+					call(["pcsuite-disable.sh"], options)
+				if module[0:2] == "g_":
+					modules.append(module)
+	for m in modules:
+		rmmod(m, options)
+		
+def is_running(cmd, options):
+	proc = "/proc"
+	for d in os.listdir(proc):
+		if d.isdigit():
+			try:
+				exe = os.readlink(os.path.join(proc, d, "exe"))
+			except OSError:
+				pass
+			else:
+				if exe.endswith("/" + cmd):
+					return True
+	return False
+		
+def bme(options):
+	remove = None
+	with open("/proc/modules") as f:
+		for l in f:
+			m = l.split()[0]
+			if m== "bq2415x_charger":
+				rmmod(m, options)
+			elif m == "bq27x00_battery":
+				remove = m;
+	if remove:
+		rmmod(remove, options)
+	
+	if not is_running("bme_RX-51", options):
+		call(["start",  "-q", "bme"], options)
+	elif options.verbose:
+		print "bme already running"
+		
+def usb_mode(mode, options):
+	with open("/sys/devices/platform/musb_hdrc/mode", "w") as f:
+		f.write(mode + "\n")
+	if options.verbose:
+		print "set usb_mode to", mode
+	
+def peripheral(options):
+	gadget_unload(options)
+	try:
+		if get_charger_mode(options).find("boost") != -1:
+			set_charger_mode("none", options)
+	except IOError:
+		pass
+	usb_mode("peripheral", options)
+	try:
+		set_charger_mode("auto", options)
+	except IOError:
+		pass
+	call(["modprobe", "g_file_storage", "stall=0", "luns=2", "removable"], options)
+	bme(options)
+	
+def enumerate(options):
+	with open("/proc/driver/musb_hdrc", "w") as f:
+		f.write("F\n")
+	if options.verbose: print "enumerate"
+
+def usb_speed(options):
+	with open("/sys/devices/platform/musb_hdrc/hostdevice") as f:
+		r = f.readline().strip();
+	if options.verbose: print "usb_speed (usb_device)", r
+	return r
+	
+def kernel(options):
+	call_ignore(["stop", "-q", "bme"], options)
+	list = set(["bq2415x_charger", "bq27x00_battery"])
+	with open("/proc/modules") as f:
+		for l in f:
+			list.discard(l.split()[0])
+	for m in list:
+		insmod(m, options)
+	
+def check_usb(options):
+	usb = "/dev/bus/usb/001/001"
+	if options.verbose: print "reading", usb
+	sys.stdout.flush()
+	fds = os.pipe()
+	pid = os.fork()
+	if pid == 0:
+		os.close(fds[0])
+		with open(usb) as f:
+			f.read(100)
+		sys.exit(0)
+	os.close(fds[1])
+	poller = select.poll()
+	poller.register(fds[0])
+	before = time.time()
+	delay = options.usb_delay
+	if poller.poll(delay * 1000) == []:
+		if options.verbose: print "check_usb timeout after", delay, "seconds"
+		os.kill(pid, signal.SIGKILL)
+		r = False
+	else:
+		if options.verbose: print "check_usb ok", time.time() - before, "seconds"
+		r = True
+	os.close(fds[0])
+	while os.waitpid(0, os.WNOHANG) != (0, 0):
+		pass
+	return r
+	
+def hostc(options):
+	kernel(options)
+	
+	if check_usb(options):
+		if options.verbose: print "already attached"
+		return
+
+	mode = get_charger_mode(options)
+	if mode.find("none") == -1  and mode.find("boost") == -1:
+			print >> sys.stderr, "mode", mode, "charger attached?"
+			sys.exit(1)
+		
+	gadget_unload(options)
+	set_charger_mode("none", options)
+	call(["modprobe", "g_file_storage", "stall=0", "luns=2", "removable"], options)
+	rtry = options.start
+	good = ""
+	
+	while True:
+		if options.verbose: print "trying", rtry
+		set_charger_mode("none", options)
+		sleep(4, options)
+		set_usb_mode("host" + rtry[0], options)
+	
+		set_charger_mode("boost", options)
+		sleep(1, options)
+		enumerate(options)
+		sleep(2, options)
+	
+		if check_usb(options):
+			if options.verbose: print "hostc ok"
+			return
+			
+		speed = usb_speed(options)
+		if speed == "none":
+			next = good
+		elif speed == "low":
+			next = "low"
+		elif speed == "full/low":
+			if rtry == "low":
+				next = "full"
+			else:
+				next = "low"
+		elif speed == "full":
+			next = "full"
+		elif speed == "full/high":
+			if rtry == "full":
+				next = "high"
+			else:
+				next = "full"
+		elif speed == "high":
+			next = "high"
+		else:
+			print >> sys.stderr, "unknown speed in /sys", speed
+			sys.exit(1)
+			
+		if speed.find(rtry) != -1:
+			good = rtry
+			
+		if rtry == next and speed != "none":
+			print >> sys.stderr, "correct speed but no device", speed, rtry
+			sys.exit(1)
+			
+		if next == "":
+			print >> sys.stderr, "no device arrived", speed, rtry
+			sys.exit(1)
+			
+		rtry = next
+		if options.verbose: print
+	
+if __name__ == "__main__":
+	parser = optparse.OptionParser()
+	parser.set_defaults(mode="hostc")
+	
+	parser.add_option("-v", action="store_true", dest="verbose", default=False)
+	parser.add_option("-s", "--start", type = "choice", choices=["low","full","high"], help="start speed in host mode [%default]", default = "low")
+	parser.add_option("-u", "--usb_delay", type = "float", help="timeout in seconds waiting for USB device to respond [%default]", default = 6)
+
+	parser.add_option("-p", "--peripheral", action="store_const", dest="mode", const="peripheral", help = "the N900 is a USB client charging if it can")
+	parser.add_option("-b", "--boost", "--hostboost", action="store_const", dest="mode", const="boost", help = "host mode with the N900 providing power")
+	parser.add_option("-c", "--charge", "--hostcharge", action="store_const", dest="mode", const="charge", help = "host mode with the N900 charging itself if it can")
+	(options, args) = parser.parse_args()
+	
+	print options.mode
+	if options.mode == "peripheral":
+		peripheral(options)
+	elif options.mode == "charge":
+		hostc(options)
+		set_charger_mode("auto", options)
+	elif options.mode == "boost":
+		hostc(options)
