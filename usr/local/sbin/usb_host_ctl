@@ -198,6 +198,7 @@ def hostc(options):
 		return
 
 	mode = get_charger_mode(options)
+	# this appears to be wrong, I have nothing plugged in and mode is "auto (host)"
 	if mode.find("none") == -1  and mode.find("boost") == -1:
 			print >> sys.stderr, "mode", mode, "charger attached?"
 			sys.exit(1)
