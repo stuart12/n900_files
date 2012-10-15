@@ -106,6 +106,7 @@ def bme(options):
 	with open("/proc/modules") as f:
 		for l in f:
 			m = l.split()[0]
+			# fixme, don't rmmod while scanning the list
 			if m== "bq2415x_charger":
 				rmmod(m, options)
 			elif m == "bq27x00_battery":
