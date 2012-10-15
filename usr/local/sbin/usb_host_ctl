@@ -12,7 +12,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-# copied from pali's script in usbmode_1.0-2_armel.deb
+# copied from the script pali wrote for usbmode_1.0-2_armel.deb
 # http://talk.maemo.org/showthread.php?t=85658
 
 # this script does not work (yet)
@@ -106,7 +106,7 @@ def bme(options):
 	with open("/proc/modules") as f:
 		for l in f:
 			m = l.split()[0]
-			# fixme, don't rmmod while scanning the list
+			# fixme, do not rmmod while scanning the list
 			if m== "bq2415x_charger":
 				rmmod(m, options)
 			elif m == "bq27x00_battery":
