@@ -14,6 +14,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 # copied from the script pali wrote for usbmode_1.0-2_armel.deb
 # http://talk.maemo.org/showthread.php?t=85658
+# http://atrey.karlin.mff.cuni.cz/~pali/projects/maemo/bq2415x.html
 
 # this script does not work (yet)
 
