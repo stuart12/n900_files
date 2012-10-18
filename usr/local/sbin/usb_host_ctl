@@ -1,29 +1,69 @@
 #!/usr/bin/python
-#    usb_host_ctl Copyright (c) 2012 Stuart Pook (http://www.pook.it/)
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+# usb_host_ctl Copyright (c) 2012 Stuart Pook (http://www.pook.it/)
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
 #
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 #
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 # copied from the script pali wrote for usbmode_1.0-2_armel.deb
 # http://talk.maemo.org/showthread.php?t=85658
 # http://atrey.karlin.mff.cuni.cz/~pali/projects/maemo/bq2415x.html
 
-# this script does not work (yet)
+# test connected to a powered hub 2.0 with
+# Bus 001 Device 006: ID 0461:4d51 Primax Electronics, Ltd 
+# Bus 001 Device 005: ID 0424:2228 Standard Microsystems Corp. 
+# Bus 001 Device 004: ID 0424:2602 Standard Microsystems Corp. 
+# Bus 001 Device 003: ID 0424:2512 Standard Microsystems Corp. 
+# Bus 001 Device 001: ID 1d6b:0002  
+# -s high -m 1 -e 2 -n 0 -B 0 -c -u 2 ->no device arrived none low
+# -s high -m 1 -e 2 -n 1 -B 0 -c -u 2 -> connection rapid but no USB devices
+# -s high -m 1 -e 2 -n 0 -B 1 -c -u 2 -> no device arrived none low
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 2 -> worked on first try
+# -s high -m 1 -e 1 -n 1 -B 1 -c -u 2 -> worked on 3rd try (lsusb missed the mouse)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 2 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 2 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 2 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked on 1st try but lsusb missing a device
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 1 -n 1 -B 1 -c -u 1 -> worked on 5th try (lsusb missing 2 devices)
+# -s high -m 1 -e 1 -n 1 -B 1 -c -u 1 -> worked on 5th try (lsusb missing 2 devices)
+# -s high -m 1 -e 2 -n 1 -B 1 -fc -u 1 -> worked on 3th try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -fc -u 1 -> worked on 3th try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1-> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 0 -c -u 1 -> no device arrived none low
+# -s high -m 1 -e 2 -n 0 -B 1 -c -u 1 -> worked 1st try (lsusb ok)
+# reboot
+# -s high -m 1 -e 2 -n 0 -B 1 -c -u 1 -> worked 1st try (lsusb ok)
+# -s high -m 1 -e 2 -n 0 -B 1 -c -u 1 -> failed no device arrived none low
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked 1st try (lsusb ok)
+# -s high -m 1 -e 1 -n 1 -B 1 -c -u 1 -> worked on 5th try (lsusb missing 2 devices)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 4  -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 4  -> worked on 3rd try (lsusb ok)
+# -s high -m 1 -e 2 -n 1 -B 1 -c -u 1 -> worked on 3rd try (lsusb ok)
 
 from __future__ import with_statement 
 import os, sys, optparse, subprocess, pipes, errno, time, select, signal
 
 def sleep(d, options):
+	d = d * options.multiply_delays
 	if options.verbose: print "sleep", d
 	time.sleep(d)
+	
+def lsmod(options):
+	modules = []
+	with open("/proc/modules") as f:
+			for l in f:
+				modules.append(l.split()[0])
+	return modules
 
 def open_charger(mode, options):
 	try:
@@ -76,19 +116,16 @@ def gadget_unload(options):
 	if call_ignore(["osso-usb-mass-storage-is-used.sh"], options) == 0:
 		call(["osso-usb-mass-storage-disable.sh"], options)
 	modules = []
-	with open("/proc/modules") as f:
-			for l in f:
-				module = l.split()[0]
-				if module == "g_nokia":
-					if options.verbose: print "found", module
-					call(["initctl", "emit", "G_NOKIA_REMOVE"], options)
-					call_ignore(["killall", "pnatd", "obexd", "syncd"], options)
-					call(["pcsuite-disable.sh"], options)
-				if module[0:2] == "g_":
-					modules.append(module)
-	for m in modules:
-		rmmod(m, options)
-		
+	for module in lsmod(options):
+		if module == "g_nokia":
+			if options.verbose: print "found", module
+			call(["initctl", "emit", "G_NOKIA_REMOVE"], options)
+			call_ignore(["killall", "pnatd", "obexd", "syncd"], options)
+			call(["pcsuite-disable.sh"], options)
+	for module in lsmod(options):
+		if module[0:2] == "g_":
+			rmmod(module, options)
+
 def is_running(cmd, options):
 	proc = "/proc"
 	for d in os.listdir(proc):
@@ -103,20 +140,15 @@ def is_running(cmd, options):
 	return False
 		
 def bme(options):
-	remove = None
-	with open("/proc/modules") as f:
-		for l in f:
-			m = l.split()[0]
-			# fixme, do not rmmod while scanning the list
-			if m== "bq2415x_charger":
-				rmmod(m, options)
-			elif m == "bq27x00_battery":
-				remove = m;
-	if remove:
-		rmmod(remove, options)
-	
+	for m in lsmod(options):
+		if m == "bq2415x_charger" or  m == "bq27x00_battery":
+			rmmod(m, options)
 	if not is_running("bme_RX-51", options):
-		call(["start",  "-q", "bme"], options)
+		sleep(2, options) # avoid start: bme respawning too fast, stopped
+		cmd = ["start"]
+		if not options.verbose:
+			cmd.append("-q")
+		call(cmd + ["bme"], options)
 	elif options.verbose:
 		print "bme already running"
 		
@@ -153,13 +185,12 @@ def usb_speed(options):
 	return r
 	
 def kernel(options):
-	# should check that it is running before stopping bme
-	call_ignore(["stop", "-q", "bme"], options)
+	if is_running("bme_RX-51", options):
+		call_ignore(["stop", "-q", "bme"], options)
 
 	list = set(["bq2415x_charger", "bq27x00_battery"])
-	with open("/proc/modules") as f:
-		for l in f:
-			list.discard(l.split()[0])
+	for l in lsmod(options):
+		list.discard(l)
 	for m in list:
 		insmod(m, options)
 	
@@ -195,7 +226,7 @@ def hostc(options):
 	kernel(options)
 	
 	# this is wrong, I think that I should check /sys/devices/platform/musb_hdrc/hostdevice as well
-	if check_usb(options):
+	if usb_speed(options) != "none" and check_usb(options):
 		if options.verbose: print "already attached"
 		return
 
@@ -211,72 +242,65 @@ def hostc(options):
 	rtry = options.start
 	good = ""
 	
-	while True:
+	for i in range(10):
 		if options.verbose: print "trying", rtry
 		set_charger_mode("none", options)
-		sleep(4, options)
+		sleep(options.charge_none_delay, options)
 		set_usb_mode("host" + rtry[0], options)
 	
 		set_charger_mode("boost", options)
-		sleep(1, options)
+		sleep(options.charge_boost_delay, options)
 		enumerate(options)
-		sleep(2, options)
+		sleep(options.enumerate_delay, options)
 	
 		if check_usb(options):
-			if options.verbose: print "hostc ok"
+			if options.verbose:
+				speed = usb_speed(options)
+				print "hostc ok at", speed, "after", i + 1
 			return
-			
+
 		speed = usb_speed(options)
-		if speed == "none":
-			next = good
-		elif speed == "low":
-			next = "low"
-		elif speed == "full/low":
-			if rtry == "low":
-				next = "full"
-			else:
+		if not options.force_speed:
+			if speed == "none":
+				next = good
+			elif speed == "low":
 				next = "low"
-		elif speed == "full":
-			next = "full"
-		elif speed == "full/high":
-			if rtry == "full":
+			elif speed == "full/low":
+				if rtry == "low":
+					next = "full"
+				else:
+					next = "low"
+			elif speed == "full":
+				next = "full"
+			elif speed == "full/high":
+				if rtry == "full":
+					next = "high"
+				else:
+					next = "full"
+			elif speed == "high":
 				next = "high"
 			else:
-				next = "full"
-		elif speed == "high":
-			next = "high"
-		else:
-			print >> sys.stderr, "unknown speed in /sys", speed
-			sys.exit(1)
+				print >> sys.stderr, "unknown speed in /sys", speed
+				sys.exit(1)
+				
+			if speed.find(rtry) != -1:
+				good = rtry
+				
+			if rtry == next and speed != "none":
+				print >> sys.stderr, "correct speed but no device", speed, rtry
+				sys.exit(1)
+				
+			if next == "":
+				print >> sys.stderr, "no device arrived", speed, rtry
+				sys.exit(1)
 			
-		if speed.find(rtry) != -1:
-			good = rtry
-			
-		if rtry == next and speed != "none":
-			print >> sys.stderr, "correct speed but no device", speed, rtry
-			sys.exit(1)
-			
-		if next == "":
-			print >> sys.stderr, "no device arrived", speed, rtry
-			sys.exit(1)
-			
-		rtry = next
+			rtry = next
 		if options.verbose: print
+		
+	print "failed!", i
 	
-if __name__ == "__main__":
-	parser = optparse.OptionParser()
-	parser.set_defaults(mode="hostc")
-	
-	parser.add_option("-v", action="store_true", dest="verbose", default=False)
-	parser.add_option("-s", "--start", type = "choice", choices=["low","full","high"], help="start speed in host mode [%default]", default = "low")
-	parser.add_option("-u", "--usb_delay", type = "float", help="timeout in seconds waiting for USB device to respond [%default]", default = 6)
-
-	parser.add_option("-p", "--peripheral", action="store_const", dest="mode", const="peripheral", help = "the N900 is a USB client charging if it can")
-	parser.add_option("-b", "--boost", "--hostboost", action="store_const", dest="mode", const="boost", help = "host mode with the N900 providing power")
-	parser.add_option("-c", "--charge", "--hostcharge", action="store_const", dest="mode", const="charge", help = "host mode with the N900 charging itself if it can")
-	(options, args) = parser.parse_args()
-	
-	print options.mode
+def usb_host_ctl(options):
+	if options.verbose: print options.mode
 	if options.mode == "peripheral":
 		peripheral(options)
 	elif options.mode == "charge":
@@ -284,3 +308,35 @@ if __name__ == "__main__":
 		set_charger_mode("auto", options)
 	elif options.mode == "boost":
 		hostc(options)
+	elif options.mode == "enumerate":
+		enumerate(options)
+		if check_usb(options):
+			if options.verbose:
+				speed = usb_speed(options)
+				print "enumerate ok at", speed
+	if options.lsusb:
+		call(["lsusb"], options)
+	
+def main():
+	parser = optparse.OptionParser()
+	parser.set_defaults(mode="hostc")
+	
+	parser.add_option("-f", "--force_speed", action="store_true", help="don't try any other speeds", default=False)
+	parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False)
+	parser.add_option("-s", "--start", type = "choice", choices=["low","full","high"], help="start speed in host mode [%default]", default = "high")
+	parser.add_option("-u", "--usb_delay", type = "float", help="timeout in seconds waiting for USB device to respond [%default]", default = 1)
+	parser.add_option("-m", "--multiply_delays", type = "float", help="multiply all delays [%default]", default = 1)
+	parser.add_option("-e", "--enumerate_delay", type="float", help = "delay after enumerate [%default]", default = 2)
+	parser.add_option("-n", "--charge_none_delay", type="float", help = "delay after charge none [%default]", default = 1)
+	parser.add_option("-B", "--charge_boost_delay", type="float", help = "delay after charge boost [%default]", default = 1)
+	parser.add_option("-l", "--lsusb", action="store_true", help = "run lsusb")
+
+	parser.add_option("-E", "--enumerate", action="store_const", dest="mode", const="enumerate", help="enumerate only")
+	parser.add_option("-p", "--peripheral", action="store_const", dest="mode", const="peripheral", help = "the N900 is a USB client charging if it can")
+	parser.add_option("-b", "--boost", "--hostboost", action="store_const", dest="mode", const="boost", help = "host mode with the N900 providing power")
+	parser.add_option("-c", "--charge", "--hostcharge", action="store_const", dest="mode", const="charge", help = "host mode with the N900 charging itself if it can")
+	(options, args) = parser.parse_args()
+	usb_host_ctl(options)
+		
+if __name__ == "__main__":
+	main()
