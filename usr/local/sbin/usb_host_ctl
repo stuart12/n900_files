@@ -222,19 +222,24 @@ def check_usb(options):
 		pass
 	return r
 	
+def error(message, options):
+	print  >> sys.stderr, message
+	if options.interactive:
+		time.sleep(60 * 60)
+	sys.exit(1)
+	
 def hostc(options):
 	kernel(options)
 	
 	# this is wrong, I think that I should check /sys/devices/platform/musb_hdrc/hostdevice as well
 	if usb_speed(options) != "none" and check_usb(options):
 		if options.verbose: print "already attached"
-		return
+		error("already attached", options)
 
 	mode = get_charger_mode(options)
 	# this appears to be wrong, I have nothing plugged in and mode is "auto (host)"
 	if mode.find("none") == -1  and mode.find("boost") == -1:
-			print >> sys.stderr, "mode", mode, "charger attached?"
-			sys.exit(1)
+		error("mode " + mode + "charger attached?", options)
 		
 	gadget_unload(options)
 	set_charger_mode("none", options)
@@ -280,24 +285,21 @@ def hostc(options):
 			elif speed == "high":
 				next = "high"
 			else:
-				print >> sys.stderr, "unknown speed in /sys", speed
-				sys.exit(1)
+				error("unknown speed in /sys" + speed, options)
 				
 			if speed.find(rtry) != -1:
 				good = rtry
 				
 			if rtry == next and speed != "none":
-				print >> sys.stderr, "correct speed but no device", speed, rtry
-				sys.exit(1)
+				error("correct speed but no device %s %d" % ( speed, rtry), options)
 				
 			if next == "":
-				print >> sys.stderr, "no device arrived", speed, rtry
-				sys.exit(1)
+				error("no device arrived %s %d" % ( speed, rtry), options)
 			
 			rtry = next
 		if options.verbose: print
 		
-	print "failed!", i
+	error("tried too many times %d" % (rtry), options)
 	
 def usb_host_ctl(options):
 	if options.verbose: print options.mode
