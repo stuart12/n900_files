@@ -321,7 +321,7 @@ def interactive_commands(state, options):
 	while True:
 		print "enter command or empty line to", state,
 		f = sys.stdin.readline()
-		f.strip()
+		f = f.strip()
 		if not f:
 			break
 		if f == "l":
