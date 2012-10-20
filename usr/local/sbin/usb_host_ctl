@@ -333,7 +333,8 @@ def interactive_commands(state, options):
 	
 def main():
 	parser = optparse.OptionParser()
-	parser.set_defaults(mode="hostc")
+	boost = "boost"
+	parser.set_defaults(mode=boost)
 	peripheral = "peripheral"
 	
 	parser.add_option("-i", "--interactive", action="store_true", help="interactive mode", default=False)
@@ -349,7 +350,7 @@ def main():
 
 	parser.add_option("-E", "--enumerate", action="store_const", dest="mode", const="enumerate", help="enumerate only")
 	parser.add_option("-p", "--peripheral", action="store_const", dest="mode", const=peripheral, help = "the N900 is a USB client charging if it can")
-	parser.add_option("-b", "--boost", "--hostboost", action="store_const", dest="mode", const="boost", help = "host mode with the N900 providing power")
+	parser.add_option("-b", "--boost", "--hostboost", action="store_const", dest="mode", const=boost, help = "host mode with the N900 providing power")
 	parser.add_option("-c", "--charge", "--hostcharge", action="store_const", dest="mode", const="charge", help = "host mode with the N900 charging itself if it can")
 	(options, args) = parser.parse_args()
 	
