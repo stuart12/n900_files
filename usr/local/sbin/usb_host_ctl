@@ -316,11 +316,27 @@ def usb_host_ctl(options):
 				print "enumerate ok at", speed
 	if options.lsusb:
 		call(["lsusb"], options)
+		
+def interactive_commands(state, options):
+	while True:
+		print "enter command or empty line to", state,
+		f = sys.stdin.readline()
+		f.strip()
+		if not f:
+			break
+		if f == "l":
+			call(["lsusb"], options)
+		else:
+			print "unknown command", f
+	options.mode = "peripheral"
+	
 	
 def main():
 	parser = optparse.OptionParser()
 	parser.set_defaults(mode="hostc")
+	peripheral = "peripheral"
 	
+	parser.add_option("-i", "--interactive", action="store_true", help="interactive mode", default=False)
 	parser.add_option("-f", "--force_speed", action="store_true", help="don't try any other speeds", default=False)
 	parser.add_option("-v", "--verbose", action="store_true", dest="verbose", default=False)
 	parser.add_option("-s", "--start", type = "choice", choices=["low","full","high"], help="start speed in host mode [%default]", default = "high")
@@ -332,11 +348,17 @@ def main():
 	parser.add_option("-l", "--lsusb", action="store_true", help = "run lsusb")
 
 	parser.add_option("-E", "--enumerate", action="store_const", dest="mode", const="enumerate", help="enumerate only")
-	parser.add_option("-p", "--peripheral", action="store_const", dest="mode", const="peripheral", help = "the N900 is a USB client charging if it can")
+	parser.add_option("-p", "--peripheral", action="store_const", dest="mode", const=peripheral, help = "the N900 is a USB client charging if it can")
 	parser.add_option("-b", "--boost", "--hostboost", action="store_const", dest="mode", const="boost", help = "host mode with the N900 providing power")
 	parser.add_option("-c", "--charge", "--hostcharge", action="store_const", dest="mode", const="charge", help = "host mode with the N900 charging itself if it can")
 	(options, args) = parser.parse_args()
+	
 	usb_host_ctl(options)
+	if options.interactive:
+		interactive_commands("quit USB host mode", options)
+		options.mode = "peripheral"
+		usb_host_ctl(options)
+		interactive_commands("quit program", options)
 		
 if __name__ == "__main__":
 	main()
