@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=USB Mode ctl
+Icon=usb_mode_ctl
+Terminal=False
+Exec=osso-xterm -e "sudo /usr/local/bin/usb_host_ctl -ivl"
