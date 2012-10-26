@@ -65,13 +65,29 @@ def lsmod(options):
 				modules.append(l.split()[0])
 	return modules
 
-def open_charger(mode, options):
+def open_bq24150(file, mode, options):
 	try:
-		return open("/sys/class/power_supply/bq24150a-0/mode", mode)
+		return open("/sys/class/power_supply/bq24150-0/" + file, mode)
 	except IOError, (e, strerror):
 		if e != errno.ENOENT:
 			raise
-		return open("/sys/class/power_supply/bq24150-0/mode", mode)
+		return open("/sys/class/power_supply/bq24150a-0/" + file, mode)
+
+def get_bq24150(file, options):
+	with open_bq24150(file, "r", options) as f:
+		r = f.readline().strip()
+#		if options.verbose: print "bq24150", file, r
+		return r
+
+def set_charger_mode(mode, options):
+	with open_bq24150("mode", "w", options) as f:
+		f.write(mode + "\n")
+		if options.verbose: print "set_charger_mode", mode
+
+def get_charger_mode(options):
+	r = get_bq24150("mode", options)
+#	if options.verbose: print "get_charger_mode", r
+	return r
 
 def call_print(command, options):
 	if options.verbose:
@@ -89,23 +105,18 @@ def call_ignore(command, options):
 	r = subprocess.call(command)
 	if options.verbose: print command[0], "done", r
 	return r
+	
+usb_mode_file = "/sys/devices/platform/musb_hdrc/mode"
 
 def set_usb_mode(mode, options):
-	with open("/sys/devices/platform/musb_hdrc/mode", "w") as f:
+	with open(usb_mode_file, "w") as f:
 		f.write(mode + "\n")
 	if options.verbose: print "set_usb_mode", mode
 
-def set_charger_mode(mode, options):
-	with open_charger("w", options) as f:
-		f.write(mode + "\n")
-		if options.verbose: print "set_charger_mode", mode
+def get_usb_mode(options):
+	with open(usb_mode_file) as f:
+		return f.readline().strip()
 
-def get_charger_mode(options):
-	with open_charger("r", options) as f:
-		r = f.readline().strip()
-		if options.verbose: print "get_charger_mode", r
-		return r
-		
 def rmmod(module, options):
 	call(["modprobe", "-r"] + [module], options)
 		
@@ -151,12 +162,6 @@ def bme(options):
 		call(cmd + ["bme"], options)
 	elif options.verbose:
 		print "bme already running"
-		
-def usb_mode(mode, options):
-	with open("/sys/devices/platform/musb_hdrc/mode", "w") as f:
-		f.write(mode + "\n")
-	if options.verbose:
-		print "set usb_mode to", mode
 	
 def peripheral(options):
 	gadget_unload(options)
@@ -165,7 +170,7 @@ def peripheral(options):
 			set_charger_mode("none", options)
 	except IOError:
 		pass
-	usb_mode("peripheral", options)
+	set_usb_mode("peripheral", options)
 	try:
 		set_charger_mode("auto", options)
 	except IOError:
@@ -353,7 +358,7 @@ def umount(options):
 		
 def interactive_commands(options):
 	while True:
-		print "enter command: [l]susb [e]numerate [m]ount [u]mount mounte[d] [q]uit ",
+		print "enter command: [l]susb [e]numerate [m]ount [u]mount mounte[d] [c]harge [i]nfo [q]uit ",
 		f = sys.stdin.readline()
 		if not f:
 			break
@@ -368,6 +373,10 @@ def interactive_commands(options):
 			mounted(options)
 		elif f == "u":
 			umount(options)
+		elif f == "c":
+			set_charger_mode("auto", options)
+		elif f == "i":
+			print "charger", get_charger_mode(options), "speed", usb_speed(options), "mode", get_usb_mode(options), "power", get_bq24150("status", options), "current", get_bq24150("charge_current", options)
 		elif f == 'q':
 			break
 		else:
