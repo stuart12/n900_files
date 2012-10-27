@@ -79,10 +79,13 @@ def get_bq24150(file, options):
 #		if options.verbose: print "bq24150", file, r
 		return r
 
+def set_bq24150(file, value, options):
+	with open_bq24150(file, "w", options) as f:
+		f.write(value + "\n")
+
 def set_charger_mode(mode, options):
-	with open_bq24150("mode", "w", options) as f:
-		f.write(mode + "\n")
-		if options.verbose: print "set_charger_mode", mode
+	set_bq24150("mode", mode, options)
+	if options.verbose: print "set bq24150", "mode", value
 
 def get_charger_mode(options):
 	r = get_bq24150("mode", options)
@@ -186,7 +189,7 @@ def enumerate(options):
 def usb_speed(options):
 	with open("/sys/devices/platform/musb_hdrc/hostdevice") as f:
 		r = f.readline().strip();
-	if options.verbose: print "usb_speed (usb_device)", r
+#	if options.verbose: print "usb_speed (usb_device)", r
 	return r
 	
 def kernel(options):
@@ -270,6 +273,7 @@ def hostc(options):
 			return
 
 		speed = usb_speed(options)
+		if options.verbose: print "speed", speed
 		if not options.force_speed:
 			if speed == "none":
 				next = good
@@ -358,7 +362,7 @@ def umount(options):
 		
 def interactive_commands(options):
 	while True:
-		print "enter command: [l]susb [e]numerate [m]ount [u]mount mounte[d] [c]harge [i]nfo [q]uit ",
+		print "enter command: [l]susb [e]numerate [m]ount [u]mount mounte[d] [c]harge [5]00mA host charge [8]00mA host charge [i]nfo [q]uit ",
 		f = sys.stdin.readline()
 		if not f:
 			break
@@ -375,8 +379,13 @@ def interactive_commands(options):
 			umount(options)
 		elif f == "c":
 			set_charger_mode("auto", options)
+		elif f == "5":
+			set_bq24150("mode", "host", options)
+		elif f == "8":
+			set_bq24150("mode", "host", options)
+			set_bq24150("current_limit", "800", options)
 		elif f == "i":
-			print "charger", get_charger_mode(options), "speed", usb_speed(options), "mode", get_usb_mode(options), "power", get_bq24150("status", options), "current", get_bq24150("charge_current", options)
+			print "speed", usb_speed(options), ", mode", get_usb_mode(options), ", bq24150: mode", get_bq24150("mode",options), ", current_limit", get_bq24150("current_limit", options), ", status", get_bq24150("status", options)
 		elif f == 'q':
 			break
 		else:
