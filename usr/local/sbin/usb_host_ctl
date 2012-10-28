@@ -11,7 +11,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-# copied from the script pali wrote for usbmode_1.0-2_armel.deb
+# copied from the script Pali Rohar wrote for usbmode_1.0-2_armel.deb
 # http://talk.maemo.org/showthread.php?t=85658
 # http://atrey.karlin.mff.cuni.cz/~pali/projects/maemo/bq2415x.html
 
@@ -85,7 +85,7 @@ def set_bq24150(file, value, options):
 
 def set_charger_mode(mode, options):
 	set_bq24150("mode", mode, options)
-	if options.verbose: print "set bq24150", "mode", value
+	if options.verbose: print "set bq24150", "mode", mode
 
 def get_charger_mode(options):
 	r = get_bq24150("mode", options)
@@ -361,8 +361,13 @@ def umount(options):
 		call_ignore(["umount", device], options)
 		
 def interactive_commands(options):
+	help = "commands: [l]susb [e]numerate [m]ount [u]mount mounte[d] [c]harge [5]00mA host charge, [8]00mA charge, 1800m[A] charge, [i]nfo [q]uit"
+	prompt = help
 	while True:
-		print "enter command: [l]susb [e]numerate [m]ount [u]mount mounte[d] [c]harge [5]00mA host charge [8]00mA host charge [i]nfo [q]uit ",
+		print get_bq24150("status", options), "@", \
+			get_bq24150("current_limit", options), "mA", \
+			prompt,
+		prompt = "?"
 		f = sys.stdin.readline()
 		if not f:
 			break
@@ -384,12 +389,22 @@ def interactive_commands(options):
 		elif f == "8":
 			set_bq24150("mode", "host", options)
 			set_bq24150("current_limit", "800", options)
+		elif f == "A":
+			set_bq24150("mode", "host", options)
+			set_bq24150("current_limit", "1800", options)
 		elif f == "i":
-			print "speed", usb_speed(options), ", mode", get_usb_mode(options), ", bq24150: mode", get_bq24150("mode",options), ", current_limit", get_bq24150("current_limit", options), ", status", get_bq24150("status", options)
+			print "speed " + usb_speed(options) +\
+				", mode " + get_usb_mode(options) +\
+				", bq24150: mode " + get_bq24150("mode",options) +\
+				", current_limit " + get_bq24150("current_limit", options) + \
+				", status" + get_bq24150("status", options)
 		elif f == 'q':
 			break
+		elif f == "":
+			pass
 		else:
 			print "unknown command", f
+			prompt = help
 			
 def ask_for_quit(options):
 	print "hit return to quit"
