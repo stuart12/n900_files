@@ -1,0 +1,2 @@
+# Stuart
+ACTION=="add", ATTRS{idVendor}=="04a9", ATTRS{idProduct}=="3110", RUN+="/usr/local/sbin/canon_download_term $env{idVendor}"
