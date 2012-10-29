@@ -1,0 +1,28 @@
+#!/usr/bin/python
+# debian-user, Copyright (C) 2012 Stuart Pook (http://www.pook.it/)
+# Run a command as user in the chroot environment.
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import os, sys
+def main():
+	prog = os.path.join("/media/mmc1", "debian.sh")
+	try:
+		if len(sys.argv) == 1:
+			os.execl(prog, prog, "su", "-l", "user")
+		if len(sys.argv) == 2:
+			os.execl(prog, prog, "su", "-l", "user", "-c", sys.argv[1])
+	except OSError:
+		print(prog)
+		raise
+	sys.exit("usage: " + os.path.basename(sys.argv[0]) + " [<command>]")
+
+if __name__ == "__main__":
+	main()
