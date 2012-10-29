@@ -1,1 +1,0 @@
-user ALL = NOPASSWD: /usr/local/bin/usb_host_ctl
