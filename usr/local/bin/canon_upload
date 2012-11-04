@@ -1,0 +1,51 @@
+#!/usr/bin/ssh-agent python
+import os, subprocess, sys
+import time
+import optparse
+def run(options):
+	status = subprocess.call(["ssh-add", "-t", "24h"])
+	if status:
+		if options.interactive:
+			time.sleep(60)
+		return "ssh-add failed " + str(status)
+	src = os.path.expanduser("~/MyDocs/Canon-EOS400D/raw/")
+	dest = options.remote + ":/export/Canon-EOS400D"
+	command = ["rsync",
+		"--recursive",
+		"--times",
+		"--progress",
+		"--protect-args",
+		"--partial-dir=.rsync", 
+		"--modify-window=1",
+	]
+	if options.slow:
+		command.append("--bwlimit=20")
+	command.extend([ src, dest ])
+	if not options.interactive:
+		subprocess.check_call(command)
+		return 0
+	else:
+		while True:
+			status = subprocess.call(command)
+			if status:
+				print command[0], "failed with status", status
+			print "try again? ",
+			reply = sys.stdin.readline()
+			if not reply or reply[0] == "n":
+				print "giving up because you said", reply
+				time.sleep(3)
+				if status:
+					return "quit with status " + str(status)
+				else:
+					return 0
+
+def main():
+        parser = optparse.OptionParser()
+        parser.add_option("-i", "--interactive", action="store_true", help="interactive mode", default=False)
+        parser.add_option("-s", "--slow", action="store_true", help="limit bandwidth", default=False)
+        parser.add_option("-r", "--remote", help="remote host", default="localhost")
+	(options, args) = parser.parse_args()
+	return run(options)
+
+if __name__ == "__main__":
+	sys.exit(main())
