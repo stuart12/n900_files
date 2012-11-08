@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=Photo reduce
+Icon=1352149485_display
+Terminal=False
+Exec=osso-xterm -e "transform -vi MyDocs/Canon-EOS400D/raw MyDocs/Canon-EOS400D/jpeg"
