@@ -3,13 +3,13 @@ import os, subprocess, sys
 import time
 import optparse
 def run(options):
-	status = subprocess.call(["ssh-add", "-t", "24h"])
+	status = subprocess.call(["ssh-add", "-t", "7d"])
 	if status:
 		if options.interactive:
 			time.sleep(60)
 		return "ssh-add failed " + str(status)
 	src = os.path.expanduser("~/MyDocs/Canon-EOS400D/raw/")
-	dest = options.remote + ":/export/Canon-EOS400D"
+	dest = options.remote + ":/export/ws/Canon-EOS400D"
 	command = ["rsync",
 		"--recursive",
 		"--times",
