@@ -1,2 +1,4 @@
 # Stuart
-ACTION=="add", ATTRS{idVendor}=="04a9", ATTRS{idProduct}=="3110", RUN+="/usr/local/sbin/canon_download_term $env{idVendor}"
+# ATTRS{idProduct}=="3110", 
+ACTION=="add", SUBSYSTEM=="usb", ENV{DEVTYPE}=="usb_device", ATTRS{idVendor}=="04a9", RUN+="/usr/local/sbin/canon_download_term $attr{idVendor} $attr{idProduct}"
+ATTRS{idVendor}=="04a9", MODE="0664", GROUP="plugdev"
