@@ -18,13 +18,14 @@ import os, subprocess, sys
 import time
 import optparse
 def run(options):
-	status = subprocess.call(["ssh-add", "-l"])
-	if status:
-		status = subprocess.call(["ssh-add"])
+	if options.ssh_add:
+		status = subprocess.call(["ssh-add", "-l"])
 		if status:
-			if options.interactive:
-				time.sleep(60)
-			return "ssh-add failed " + str(status)
+			status = subprocess.call(["ssh-add"])
+			if status:
+				if options.interactive:
+					time.sleep(60)
+				return "ssh-add failed " + str(status)
 	src = os.path.expanduser("~/MyDocs/Canon-EOS400D/raw/")
 	dest = options.remote + ":/export/ws/Canon-EOS400D"
 	command = ["rsync",
@@ -57,10 +58,11 @@ def run(options):
 					return 0
 
 def main():
-        parser = optparse.OptionParser()
-        parser.add_option("-i", "--interactive", action="store_true", help="interactive mode", default=False)
-        parser.add_option("-s", "--slow", action="store_true", help="limit bandwidth", default=False)
-        parser.add_option("-r", "--remote", help="remote host", default="localhost")
+	parser = optparse.OptionParser()
+	parser.add_option("-i", "--interactive", action="store_true", help="interactive mode", default=False)
+	parser.add_option("-s", "--slow", action="store_true", help="limit bandwidth", default=False)
+	parser.add_option("-S", "--ssh_add", action="store_true", help="run ssh add", default=False)
+	parser.add_option("-r", "--remote", help="remote host", default="localhost")
 	(options, args) = parser.parse_args()
 	return run(options)
 
