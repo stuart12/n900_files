@@ -1,13 +1,30 @@
-#!/usr/bin/ssh-agent python
+#!/usr/bin/python
+# canon_upload, COpyright (C) 2012, Stuart Pook
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT ANY
+# WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# must work with python 2.5
+
+from __future__ import with_statement
+
 import os, subprocess, sys
 import time
 import optparse
 def run(options):
-	status = subprocess.call(["ssh-add", "-t", "7d"])
+	status = subprocess.call(["ssh-add", "-l"])
 	if status:
-		if options.interactive:
-			time.sleep(60)
-		return "ssh-add failed " + str(status)
+		status = subprocess.call(["ssh-add"])
+		if status:
+			if options.interactive:
+				time.sleep(60)
+			return "ssh-add failed " + str(status)
 	src = os.path.expanduser("~/MyDocs/Canon-EOS400D/raw/")
 	dest = options.remote + ":/export/ws/Canon-EOS400D"
 	command = ["rsync",
