@@ -1,0 +1,60 @@
+#!/usr/bin/python
+# canon2nexus7, Copyright (C) 2012 Stuart Pook (http://www.pook.it/)
+# This program is free software: you can redistribute it and/or modify it under
+# the terms of the GNU General Public License as published by the Free Software
+# Foundation, either version 3 of the License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import with_statement
+
+import os, subprocess, sys
+import time
+import optparse
+import pipes
+
+def get_nexus_address(options):
+	with open(options.leases) as leases:
+		for lease in leases:
+			time, mac, ip, host, flags = lease.split()
+			if host.startswith(options.hostname):
+				return ip
+			elif options.verbose:
+				print "host not found in", lease
+	sys.exit("no host who's name starts with " + options.hostname + " in " + options.leases)
+
+def check_call(cmd, options):
+	if options.verbose:
+		print " ".join(pipes.quote(c) for c in cmd)
+	subprocess.check_call(cmd)
+
+def main():
+	parser = optparse.OptionParser(usage="usage: %prog [options] [--help]")
+	parser.disable_interspersed_args()
+	parser.add_option("-v", "--verbose", action="store_true", help="verbose mode", default=False)
+	parser.add_option("--leases", default="/var/lib/misc/dnsmasq.leases", help="dnsmasq lease file [%default]")
+	parser.add_option("--hostname", default="android-", help="host name must start with this [%default]")
+	parser.add_option("--dest_dir", default="/mnt/shell/emulated/0/Stuart/photos-n900/", help="remote directory [%default]")
+	parser.add_option("--user", default="shell", help="remote user [%default]")
+
+	(options, args) = parser.parse_args()
+	if options.verbose:
+		print "uploading Canon pictures to the Nexus 7"
+
+	if args:
+		parser.error("no arguments allowed")
+
+	ip = get_nexus_address(options)
+	cmd = ["rsync", "--delete", "-r", "--size-only", "--partial"]
+	if options.verbose:
+		cmd.append("--progress")
+	cmd.extend(["/home/user/MyDocs/Canon-EOS400D/jpeg/", options.user + "@" + ip + ":" + options.dest_dir])
+
+	check_call(cmd, options)
+
+if __name__ == "__main__":
+	main()
